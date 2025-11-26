@@ -1,91 +1,150 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/flashcardRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#1A1D1F"
-    android:paddingTop="50dp"
-    tools:context=".FlashcardViewerActivity">
+    android:paddingTop="24dp">
 
     <!-- Header with Back Button -->
     <LinearLayout
         android:id="@+id/headerLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="#202224"
-        android:gravity="center_vertical"
         android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:padding="16dp"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:background="#202224"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintEnd_toEndOf="parent">
 
         <ImageButton
             android:id="@+id/btnBack"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Back"
-            android:padding="12dp"
             android:src="@drawable/ic_arrow_back"
-            app:tint="#fcf0d1" />
+            android:contentDescription="Back"
+            app:tint="#fcf0d1"
+            android:padding="12dp" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
             android:layout_weight="1"
-            android:fontFamily="sans-serif-medium"
-            android:text="📝 Flashcard"
+            android:layout_marginStart="8dp"
+            android:text="📝 Flashcards"
             android:textColor="#fcf0d1"
-            android:textSize="24sp"
-            android:textStyle="bold" />
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium" />
+
     </LinearLayout>
+
+    <!-- Progress Bar -->
+    <ProgressBar
+        android:id="@+id/progressBarSession"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="0dp"
+        android:layout_height="8dp"
+        android:progress="0"
+        android:max="100"
+        android:progressTint="#FFEB3B"
+        android:indeterminate="false"
+        app:layout_constraintTop_toBottomOf="@id/headerLayout"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="8dp" />
 
     <!-- Flashcard Swiper -->
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_margin="16dp"
-        app:layout_constraintBottom_toTopOf="@+id/navButtons"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        app:layout_constraintTop_toBottomOf="@id/progressBarSession"
+        app:layout_constraintBottom_toTopOf="@id/answerButtons"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/headerLayout" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Navigation Buttons -->
+    <!-- Correct / Incorrect / Reveal Buttons -->
     <LinearLayout
-        android:id="@+id/navButtons"
-        android:layout_width="wrap_content"
+        android:id="@+id/answerButtons"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        android:gravity="center"
         android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        android:gravity="center"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        app:layout_constraintBottom_toTopOf="@id/btnReviewMistakes"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <ImageButton
-            android:id="@+id/btnPrevious"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Previous"
-            android:padding="16dp"
-            android:src="@drawable/ic_arrow_back"
-            app:tint="@android:color/white" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCorrect"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="48dp"
+            android:text="Correct"
+            android:textColor="#fcf0d1"
+            android:textAllCaps="false"
+            android:fontFamily="@font/poppins"
+            android:backgroundTint="#4CAF50"
+            app:cornerRadius="12dp"
+            android:layout_marginEnd="8dp" />
 
-        <ImageButton
-            android:id="@+id/btnNext"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnIncorrect"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="48dp"
+            android:text="Incorrect"
+            android:textColor="#fcf0d1"
+            android:textAllCaps="false"
+            android:fontFamily="@font/poppins"
+            android:backgroundTint="#F44336"
+            app:cornerRadius="12dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnReveal"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Next"
-            android:padding="16dp"
-            android:src="@drawable/ic_arrow_forward"
-            app:tint="@android:color/white" />
+            android:layout_height="48dp"
+            android:text="Reveal Answer"
+            android:textColor="#fcf0d1"
+            android:textAllCaps="false"
+            android:fontFamily="@font/poppins"
+            android:backgroundTint="#FFC107"
+            app:cornerRadius="12dp"
+            android:layout_marginStart="8dp" />
+
     </LinearLayout>
+
+    <!-- Review Mistakes Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnReviewMistakes"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:text="Review Mistakes"
+        android:textColor="#fcf0d1"
+        android:textAllCaps="false"
+        android:fontFamily="@font/poppins"
+        android:backgroundTint="#4CAF50"
+        app:cornerRadius="12dp"
+        android:layout_marginHorizontal="16dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

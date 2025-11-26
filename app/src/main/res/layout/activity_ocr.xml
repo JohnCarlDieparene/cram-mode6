@@ -45,6 +45,17 @@
                 android:textSize="28sp"
                 android:textStyle="bold" />
 
+            <ImageButton
+                android:id="@+id/btnUserProfile"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@null"
+                android:src="@drawable/ic_user"
+                android:contentDescription="User Profile"
+                app:tint="@android:color/white" />
+
+
+
         </LinearLayout>
 
 
@@ -721,6 +732,9 @@
                     app:strokeColor="#fcf0d1" />
             </LinearLayout>
         </androidx.cardview.widget.CardView>
+
+
+
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

@@ -22,6 +22,9 @@
         tools:targetApi="31">
 
         <!-- App Activities -->
+        <activity android:name=".FlashcardSummaryActivity" />
+        <activity android:name=".EditProfileActivity" />
+        <activity android:name=".UserProfileActivity" />
         <activity android:name=".ReviewActivity" />
         <activity android:name=".OCRActivity" />
         <activity android:name=".RegisterActivity" />
@@ -44,21 +47,23 @@
             </intent-filter>
         </activity>
 
-        <!-- Fonts -->
-        <meta-data
-            android:name="preloaded_fonts"
-            android:resource="@array/preloaded_fonts" />
-
-        <!-- FileProvider for camera and gallery access -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.provider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+
+        <!-- Fonts -->
+        <meta-data
+            android:name="preloaded_fonts"
+            android:resource="@array/preloaded_fonts" />
+
+
 
     </application>
 

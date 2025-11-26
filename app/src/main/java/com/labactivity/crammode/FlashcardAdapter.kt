@@ -5,39 +5,44 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.TextView
-import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.recyclerview.widget.RecyclerView
 
-class FlashcardAdapter(private val flashcards: List<Flashcard>) :
-    RecyclerView.Adapter<FlashcardAdapter.ViewHolder>() {
+class FlashcardAdapter(
+    private val flashcards: List<Flashcard>,
+    private val onSideChange: ((isBack: Boolean) -> Unit)? = null
+) : RecyclerView.Adapter<FlashcardAdapter.ViewHolder>() {
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val cardFront: CardView = view.findViewById(R.id.cardFront)
         private val cardBack: CardView = view.findViewById(R.id.cardBack)
         private val questionText: TextView = view.findViewById(R.id.textQuestion)
         private val answerText: TextView = view.findViewById(R.id.textAnswer)
-
         private var isFront = true
 
         init {
-            // Attach listeners to all relevant views
-            cardFront.setOnClickListener { flipCard() }
-            cardBack.setOnClickListener { flipCard() }
-            questionText.setOnClickListener { flipCard() }
-            answerText.setOnClickListener { flipCard() }
+            val flipListener = View.OnClickListener { flipCard() }
+            cardFront.setOnClickListener(flipListener)
+            cardBack.setOnClickListener(flipListener)
+            questionText.setOnClickListener(flipListener)
+            answerText.setOnClickListener(flipListener)
         }
 
         fun bind(flashcard: Flashcard) {
             questionText.text = "Q: ${flashcard.question}"
             answerText.text = "A: ${flashcard.answer}"
 
-            // Reset state
             cardFront.visibility = View.VISIBLE
             cardBack.visibility = View.GONE
             isFront = true
             cardFront.rotationY = 0f
             cardBack.rotationY = 0f
+
+            onSideChange?.invoke(false) // Front side initially
+        }
+
+        fun revealAnswer() {
+            if (isFront) flipCard() // Flip only if front
         }
 
         private fun flipCard() {
@@ -51,7 +56,6 @@ class FlashcardAdapter(private val flashcards: List<Flashcard>) :
             visibleCard.animate()
                 .rotationY(90f)
                 .setDuration(200)
-                .setInterpolator(DecelerateInterpolator())
                 .withEndAction {
                     visibleCard.visibility = View.GONE
                     hiddenCard.visibility = View.VISIBLE
@@ -59,24 +63,19 @@ class FlashcardAdapter(private val flashcards: List<Flashcard>) :
                     hiddenCard.animate()
                         .rotationY(0f)
                         .setDuration(200)
-                        .setInterpolator(DecelerateInterpolator())
-                        .start()
+                        .withEndAction {
+                            isFront = !isFront
+                            onSideChange?.invoke(!isFront) // Notify activity which side is visible
+                        }.start()
                 }.start()
-
-            isFront = !isFront
         }
-
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_flashcard, parent, false)
-        return ViewHolder(view)
-    }
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+        ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_flashcard, parent, false))
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(flashcards[position])
-    }
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) = holder.bind(flashcards[position])
 
-    override fun getItemCount(): Int = flashcards.size
+    override fun getItemCount() = flashcards.size
+    fun getFlashcard(position: Int) = flashcards[position]
 }

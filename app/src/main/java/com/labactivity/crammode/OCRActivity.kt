@@ -33,6 +33,13 @@ import com.google.firebase.ktx.Firebase
 import com.labactivity.crammode.model.StudyHistory
 import com.google.android.material.button.MaterialButton
 import com.labactivity.crammode.utils.QuizUtils
+import androidx.core.content.FileProvider
+import android.graphics.Typeface
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
+import androidx.core.content.ContextCompat
 
 
 
@@ -43,7 +50,8 @@ import com.labactivity.crammode.utils.QuizUtils
 
 
 
-class OCRActivity : AppCompatActivity() {
+
+class   OCRActivity : AppCompatActivity() {
 
     private lateinit var btnSelectImage: Button
     private lateinit var btnTakePhoto: Button
@@ -92,6 +100,7 @@ class OCRActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ocr)
+
 
 
         // Bind views
@@ -146,6 +155,8 @@ class OCRActivity : AppCompatActivity() {
 
 
 
+
+
         spinnerQuizCount.adapter = ArrayAdapter(
             this,
             android.R.layout.simple_spinner_dropdown_item,
@@ -168,6 +179,14 @@ class OCRActivity : AppCompatActivity() {
             android.R.layout.simple_spinner_dropdown_item,
             listOf("3", "5", "10")
         )
+
+
+        val btnUserProfile: ImageButton = findViewById(R.id.btnUserProfile)
+
+        btnUserProfile.setOnClickListener {
+            val intent = Intent(this, UserProfileActivity::class.java)
+            startActivity(intent)
+        }
 
 
         val timeOptions = listOf("Easy (30s)", "Medium (20s)", "Hard (10s)")
@@ -444,19 +463,50 @@ class OCRActivity : AppCompatActivity() {
         }
 
         imageView.setOnClickListener {
+
             val tempUri = getImageUriFromBitmap(bitmap)
+
+            if (tempUri == null) {
+                Toast.makeText(this, "Failed to process image.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
             val intent = Intent(this@OCRActivity, FullscreenImageActivity::class.java)
             intent.putExtra("imageUri", tempUri.toString())
             startActivity(intent)
         }
 
+
         imagePreviewList.addView(imageView)
     }
 
-    private fun getImageUriFromBitmap(bitmap: Bitmap): Uri {
-        val path = MediaStore.Images.Media.insertImage(contentResolver, bitmap, "TempImage", null)
-        return Uri.parse(path)
+    private fun getImageUriFromBitmap(bitmap: Bitmap): Uri? {
+        return try {
+            val file = File(cacheDir, "temp_${System.currentTimeMillis()}.jpg")
+            val out = FileOutputStream(file)
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out)
+            out.flush()
+            out.close()
+
+            if (!file.exists()) {
+                Log.e("OCR", "File not created: ${file.absolutePath}")
+                return null
+            }
+
+            FileProvider.getUriForFile(
+                this,
+                "$packageName.fileprovider",
+                file
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
+
+
+
+
 
 
     private fun processNextCrop() {
@@ -555,6 +605,58 @@ class OCRActivity : AppCompatActivity() {
         return true
     }
 
+    data class WeightedFlashcard(
+        val flashcard: Flashcard,
+        val weight: Float
+    )
+
+
+    // ---------------- KEYWORD EXTRACTION WITH AI ----------------
+    private fun extractKeywordsAI(text: String, callback: (List<String>) -> Unit) {
+        val prompt = """
+        Extract the most important keywords from the text below.
+        Keywords must include:
+        - Named entities (people, places, organizations, dates)
+        - Core concepts (main subjects, objects)
+        - Key verbs (critical actions)
+        Exclude common articles, prepositions, and single letters.
+        Return keywords as a comma-separated list.
+
+        Text:
+        $text
+    """.trimIndent()
+
+        val request = ChatRequest(
+            model = "command-a-03-2025",
+            messages = listOf(
+                ChatMessage("system", listOf(MessageContent(text = "You are a smart study assistant."))),
+                ChatMessage("user", listOf(MessageContent(text = prompt)))
+            )
+        )
+
+        sendChatRequest(request) { reply ->
+            val keywords = reply?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+            callback(keywords)
+        }
+    }
+
+    // ---------------- HIGHLIGHT FUNCTION ----------------
+    private fun highlightKeywords(text: String, keywords: List<String>): SpannableString {
+        val spannable = SpannableString(text)
+        val color = ContextCompat.getColor(this, R.color.teal_200) // highlight color
+
+        for (keyword in keywords) {
+            var startIndex = text.indexOf(keyword, 0, ignoreCase = true)
+            while (startIndex >= 0) {
+                val endIndex = startIndex + keyword.length
+                spannable.setSpan(StyleSpan(Typeface.BOLD), startIndex, endIndex, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                spannable.setSpan(ForegroundColorSpan(color), startIndex, endIndex, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                startIndex = text.indexOf(keyword, endIndex, ignoreCase = true)
+            }
+        }
+        return spannable
+    }
+
     // ---------------- SUMMARIZATION ----------------
     private fun summarizeText(text: String) {
         val length = spinnerLength.selectedItem.toString().lowercase()
@@ -566,21 +668,23 @@ class OCRActivity : AppCompatActivity() {
         val systemPrompt = if (selectedLanguage == "Filipino") {
             """
         Ikaw ay isang AI study assistant. Buodin ang ibinigay na teksto sa malinaw at maikling paraan.
+        Ituon ang buod sa pangunahing salita at mahahalagang konsepto.
         Haba: $length
         Format: $format
         """.trimIndent()
         } else {
             """
         You are an AI study assistant. Summarize the given text clearly and concisely.
+        Focus the summary on the main keywords and key concepts.
         Length: $length
         Format: $format
         """.trimIndent()
         }
 
         val userPrompt = if (selectedLanguage == "Filipino") {
-            "Buodin ang tekstong ito:\n\n$text"
+            "Buodin ang tekstong ito sa pamamagitan ng pagtutok sa pangunahing salita at mahahalagang konsepto:\n\n$text"
         } else {
-            "Summarize this text:\n\n$text"
+            "Summarize this text by focusing on the main keywords and key concepts:\n\n$text"
         }
 
         val request = ChatRequest(
@@ -591,9 +695,14 @@ class OCRActivity : AppCompatActivity() {
         )
 
         sendChatRequest(request) { reply ->
-            val summary = if (!reply.isNullOrBlank()) reply else "No summary generated."
-            txtSummary.text = summary
+            val summary = reply?.replace("**", "")?.trim().takeIf { it?.isNotBlank() == true } ?: "No summary generated."
 
+            // Extract keywords using AI
+            extractKeywordsAI(summary) { keywords ->
+                txtSummary.text = highlightKeywords(summary, keywords)
+            }
+
+            // Save to Firestore
             val user = FirebaseAuth.getInstance().currentUser
             if (user != null) {
                 val history = StudyHistory(
@@ -603,16 +712,13 @@ class OCRActivity : AppCompatActivity() {
                     resultText = summary,
                     timestamp = System.currentTimeMillis()
                 )
-                Firebase.firestore.collection("study_history")
-                    .add(history)
-                    .addOnSuccessListener { Log.d("SaveHistory", "Summary saved") }
-                    .addOnFailureListener { Log.e("SaveHistory", "Failed to save summary", it) }
+                Firebase.firestore.collection("study_history").add(history)
             }
         }
     }
 
 
-    // ---------------- FLASHCARDS ----------------
+
     private fun generateFlashcards(text: String) {
         val count = spinnerFlashcardCount.selectedItem.toString().toInt()
         val shortenedText = text.take(3000)
@@ -621,30 +727,28 @@ class OCRActivity : AppCompatActivity() {
         btnSummarize.isEnabled = false
 
         val systemPrompt = if (selectedLanguage == "Filipino") {
-            "Ikaw ay isang AI tutor na lumilikha ng flashcards sa anyong Tanong at Sagot."
+            "Ikaw ay isang AI tutor na lumilikha ng flashcards sa anyong Tanong at Sagot batay lamang sa pangunahing salita at mahahalagang konsepto."
         } else {
-            "You are an AI tutor generating study flashcards in Q&A format."
+            "You are an AI tutor generating study flashcards in Q&A format based only on main keywords and key concepts."
         }
 
         val userPrompt = if (selectedLanguage == "Filipino") {
             """
         Gumawa ng eksaktong $count flashcards mula sa sumusunod na teksto.
-
-        ⚠️ Format strictly (walang numbering o bullet points):
-        Q: [Isulat ang tanong dito]
-        A: [Isulat ang sagot dito]
-
+        ⚠️ Format strictly:
+        Q: [Tanong]
+        A: [Sagot]
+        --- (use this as delimiter between flashcards)
         Teksto:
         $shortenedText
         """.trimIndent()
         } else {
             """
         Create exactly $count flashcards from the following text.
-
-        ⚠️ Format strictly (no numbering, no bullet points, no extra explanations):
-        Q: [Write the question here]
-        A: [Write the answer here]
-
+        ⚠️ Format strictly:
+        Q: [Question]
+        A: [Answer]
+        --- (use this as delimiter between flashcards)
         Text:
         $shortenedText
         """.trimIndent()
@@ -659,35 +763,104 @@ class OCRActivity : AppCompatActivity() {
         )
 
         sendChatRequest(request) { reply ->
-            val flashcards = FlashcardUtils.parseFlashcards(reply).shuffled()
-            if (flashcards.isNotEmpty()) {
-                // Save to Firestore
-                val flashcardText = flashcards.joinToString("\n\n") { "Q: ${it.question}\nA: ${it.answer}" }
-                val user = FirebaseAuth.getInstance().currentUser
-                if (user != null) {
-                    val history = StudyHistory(
-                        uid = user.uid,
-                        type = "flashcards",
-                        inputText = text,
-                        resultText = flashcardText,
-                        timestamp = System.currentTimeMillis()
-                    )
-                    Firebase.firestore.collection("study_history")
-                        .add(history)
-                        .addOnSuccessListener { Log.d("SaveHistory", "Flashcards saved") }
-                        .addOnFailureListener { Log.e("SaveHistory", "Failed to save flashcards", it) }
+            val newFlashcards = try {
+                FlashcardUtils.parseFlashcards(reply).shuffled()
+            } catch (e: Exception) {
+                runOnUiThread {
+                    Toast.makeText(this, "Failed to parse flashcards.", Toast.LENGTH_LONG).show()
                 }
-
-                // Open viewer
-                val intent = Intent(this, FlashcardViewerActivity::class.java)
-                intent.putExtra("flashcards", ArrayList(flashcards))
-                startActivity(intent)
-            } else {
-                txtSummary.text = reply
-                Toast.makeText(this, "No flashcards generated.", Toast.LENGTH_LONG).show()
+                emptyList<Flashcard>()
             }
+
+            if (newFlashcards.isEmpty()) {
+                runOnUiThread {
+                    txtSummary.text = reply
+                    Toast.makeText(this, "No flashcards generated.", Toast.LENGTH_LONG).show()
+                    progressBar.visibility = View.GONE
+                    btnSummarize.isEnabled = true
+                }
+                return@sendChatRequest
+            }
+
+            val user = FirebaseAuth.getInstance().currentUser
+            if (user == null) {
+                runOnUiThread {
+                    Toast.makeText(this, "User not logged in.", Toast.LENGTH_SHORT).show()
+                    progressBar.visibility = View.GONE
+                    btnSummarize.isEnabled = true
+                }
+                return@sendChatRequest
+            }
+
+            // Fetch past weak flashcards
+            Firebase.firestore.collection("user_flashcard_stats")
+                .whereEqualTo("uid", user.uid)
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    val weightedFlashcards = snapshot.documents.mapNotNull { doc ->
+                        val question = doc.getString("question") ?: return@mapNotNull null
+                        val answer = doc.getString("answer") ?: return@mapNotNull null
+                        val total = (doc.getLong("totalAttempts") ?: 1).coerceAtLeast(1L)
+                        val wrong = doc.getLong("wrongAttempts") ?: 0L
+                        val weight = wrong.toFloat() / total.toFloat()
+                        WeightedFlashcard(Flashcard(question, answer), weight)
+                    }
+
+                    // Keep only weak flashcards related to new AI-generated questions
+                    val newQuestions = newFlashcards.map { it.question }.toSet()
+                    val relevantWeightedFlashcards = weightedFlashcards
+                        .filter { it.flashcard.question in newQuestions }
+                        .sortedByDescending { it.weight }
+
+                    // Merge weak + AI-generated flashcards
+                    val finalFlashcards = (relevantWeightedFlashcards.map { it.flashcard } + newFlashcards)
+                        .distinctBy { it.question }
+                        .take(count)
+
+                    // Save final flashcards to Firestore
+                    finalFlashcards.forEach { flashcard ->
+                        val docRef = Firebase.firestore.collection("user_flashcard_stats")
+                            .document("${user.uid}-${flashcard.question}")
+                        docRef.set(
+                            mapOf(
+                                "uid" to user.uid,
+                                "question" to flashcard.question,
+                                "answer" to flashcard.answer,
+                                "totalAttempts" to 0,
+                                "wrongAttempts" to 0,
+                                "accuracy" to 1.0,
+                                "lastReviewed" to System.currentTimeMillis()
+                            )
+                        )
+                    }
+
+                    // Launch FlashcardViewer
+                    runOnUiThread {
+                        val intent = Intent(this, FlashcardViewerActivity::class.java)
+                        intent.putExtra("flashcards", ArrayList(finalFlashcards))
+                        startActivity(intent)
+
+                        progressBar.visibility = View.GONE
+                        btnSummarize.isEnabled = true
+                    }
+                }
+                .addOnFailureListener {
+                    runOnUiThread {
+                        Toast.makeText(this, "Failed to load past flashcards.", Toast.LENGTH_SHORT).show()
+                        progressBar.visibility = View.GONE
+                        btnSummarize.isEnabled = true
+                    }
+                }
         }
     }
+
+
+
+
+
+
+
+
 
     // ---------------- QUIZ ----------------
     private fun generateQuiz(text: String) {
@@ -699,7 +872,8 @@ class OCRActivity : AppCompatActivity() {
 
         val systemPrompt = if (selectedLanguage == "Filipino") {
             """
-        Ikaw ay isang AI quiz generator. Gumawa ng eksaktong $count multiple-choice na tanong mula sa ibinigay na teksto.
+        Ikaw ay isang AI quiz generator. Gumawa ng eksaktong $count multiple-choice na tanong mula sa pangunahing salita at mahahalagang konsepto ng teksto.
+        Bawat tanong AY DAPAT may paksa.
         Gamitin ang eksaktong format na ito:
         
         Tanong: <question text>
@@ -711,7 +885,8 @@ class OCRActivity : AppCompatActivity() {
         """.trimIndent()
         } else {
             """
-        You are an AI quiz generator. Generate exactly $count multiple-choice questions from the given text.
+        You are an AI quiz generator. Generate exactly $count multiple-choice questions based on main keywords and key concepts.
+        Each question MUST include a topic.
         Use this exact format:
         
         Question: <question text>
@@ -724,9 +899,9 @@ class OCRActivity : AppCompatActivity() {
         }
 
         val userPrompt = if (selectedLanguage == "Filipino") {
-            "Gumawa ng $count tanong mula sa tekstong ito:\n\n$shortenedText\n\nSundin ang format."
+            "Gumawa ng $count tanong mula sa pangunahing salita at mahahalagang konsepto ng tekstong ito:\n\n$shortenedText\n\nSundin ang format."
         } else {
-            "Generate $count questions from this text:\n\n$shortenedText\n\nFollow the format exactly."
+            "Generate $count questions from the main keywords and key concepts of this text:\n\n$shortenedText\n\nFollow the format exactly."
         }
 
         val request = ChatRequest(
@@ -737,37 +912,48 @@ class OCRActivity : AppCompatActivity() {
         )
 
         sendChatRequest(request) { reply ->
-            val questions = QuizUtils.parseQuizQuestions(reply) // ✅ returns List<QuizQuestion>
+            // Parse quiz questions (returns List<QuizQuestion>)
+            val questions = QuizUtils.parseQuizQuestions(reply)
+
             if (questions.isNotEmpty()) {
+                // Remove duplicates if any
+                val uniqueQuestions = questions.distinctBy { it.question }.take(count)
+
                 val user = FirebaseAuth.getInstance().currentUser
                 if (user != null) {
                     val history = StudyHistory(
                         uid = user.uid,
                         type = "quiz",
                         inputText = text,
-                        resultText = reply, // keep raw text if you want
+                        resultText = reply,
                         timestamp = System.currentTimeMillis(),
-                        quiz = questions // ✅ save parsed quiz with correctAnswer + empty userAnswer
+                        quiz = ArrayList(uniqueQuestions)
                     )
 
                     Firebase.firestore.collection("study_history")
                         .add(history)
                         .addOnSuccessListener { Log.d("SaveHistory", "Quiz saved with full data") }
-                        .addOnFailureListener { Log.e("SaveHistory", "Failed to save quiz", it) }
+                        .addOnFailureListener { e -> Log.e("SaveHistory", "Failed to save quiz", e) }
 
-                    // ✅ Start viewer in "take quiz" mode
+                    // Start QuizViewerActivity
                     val intent = Intent(this, QuizViewerActivity::class.java)
-                    intent.putParcelableArrayListExtra("quizQuestions", ArrayList(questions))
+                    intent.putParcelableArrayListExtra("quizQuestions", ArrayList(uniqueQuestions))
                     intent.putExtra("timestamp", history.timestamp)
                     intent.putExtra("readOnly", false)
+                    intent.putExtra("quizCount", count)
                     startActivity(intent)
                 }
             } else {
                 txtSummary.text = reply
                 Toast.makeText(this, "No quiz questions generated.", Toast.LENGTH_LONG).show()
             }
+
+            progressBar.visibility = View.GONE
+            btnSummarize.isEnabled = true
         }
     }
+
+
 
 
 

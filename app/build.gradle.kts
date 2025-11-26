@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     id("com.google.gms.google-services")
     id ("kotlin-parcelize")
+    id("org.jetbrains.kotlin.kapt")
 }
 
 // ✅ Load COHERE_API_KEY from local.properties
@@ -58,6 +59,11 @@ android {
 }
 
 dependencies {
+
+    implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("androidx.activity:activity-ktx:1.8.0")
+
+
     implementation ("com.google.android.material:material:1.12.0") // or latest
 
     implementation("com.vanniktech:android-image-cropper:4.6.0")
@@ -69,7 +75,8 @@ dependencies {
 
 
 
-
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    kapt("com.github.bumptech.glide:compiler:4.16.0")
 
 
 
@@ -79,7 +86,8 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
     // ML Kit Text Recognition
-    implementation("com.google.mlkit:text-recognition:16.0.0-beta3")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+
 
     // CameraX
     implementation("androidx.camera:camera-core:1.3.1")
