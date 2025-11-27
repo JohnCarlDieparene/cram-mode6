@@ -85,7 +85,7 @@ class QuizViewerActivity : AppCompatActivity() {
         val selectedTimeOption = intent.getStringExtra("timePerQuestion") ?: "medium"
         questionTimeMillis = when (selectedTimeOption) {
             "easy" -> 30000L
-            "medium" -> 15000L
+            "medium" -> 20000L
             "hard" -> 10000L
             else -> 15000L
         }
