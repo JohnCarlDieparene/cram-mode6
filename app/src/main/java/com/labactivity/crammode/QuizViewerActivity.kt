@@ -12,7 +12,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.labactivity.crammode.model.QuizQuestion
-
+import androidx.activity.OnBackPressedCallback
 class QuizViewerActivity : AppCompatActivity() {
 
 
@@ -151,7 +151,14 @@ class QuizViewerActivity : AppCompatActivity() {
             startQuestionTimer()
         }
 
-        btnPrevious.visibility = if (currentIndex > 0) View.VISIBLE else View.GONE
+        // Previous button logic:
+        btnPrevious.visibility = if (readOnly) {
+            if (currentIndex > 0) View.VISIBLE else View.GONE
+        } else {
+            View.GONE // Hide during active quiz
+        }
+
+
         btnNext.visibility = if (readOnly && currentIndex < quizList.size - 1) View.VISIBLE else View.GONE
     }
 
@@ -287,12 +294,16 @@ class QuizViewerActivity : AppCompatActivity() {
 
 
     /** --- Review Weak Questions --- */
+
+
     private fun reviewWeakQuestions(weakQuestions: List<QuizQuestion>) {
-        // Use a separate copy of weak questions for review, without modifying the original quiz
+        // Create a temporary list for review
         val reviewList = ArrayList(weakQuestions.shuffled())
 
-        // Temporarily assign quizList for the review session
+        // Save reference to original quiz
         val previousQuizList = quizList
+
+        // Temporarily assign quizList to review
         quizList = reviewList
         currentIndex = 0
         score = 0
@@ -304,9 +315,20 @@ class QuizViewerActivity : AppCompatActivity() {
         updateProgress()
         showQuestion()
 
-        // When review ends (or user presses back), restore the original quizList automatically
-        // Optional: handle in onBackPressed() or a dedicated end-review button if needed
+        // Proper way to handle back press for restoring original quiz
+        val callback = object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                quizList = previousQuizList
+                currentIndex = 0
+                score = previousQuizList.count { it.isCorrect }
+                updateProgress()
+                isEnabled = false // remove this callback after execution
+                onBackPressedDispatcher.onBackPressed() // actually go back
+            }
+        }
+        onBackPressedDispatcher.addCallback(this, callback)
     }
+
 
 
     /** --- Save Weak Questions --- */
@@ -338,6 +360,10 @@ class QuizViewerActivity : AppCompatActivity() {
     private fun saveResultsToFirestore() {
         val user = FirebaseAuth.getInstance().currentUser ?: return
         if (quizTimestamp == 0L) return
+
+        // Save the original quiz answers, not temporary review
+        val quizToSave = ArrayList(originalQuizList)
+
         firestore.collection("study_history")
             .whereEqualTo("uid", user.uid)
             .whereEqualTo("timestamp", quizTimestamp)
@@ -346,10 +372,11 @@ class QuizViewerActivity : AppCompatActivity() {
                 for (doc in snapshot) {
                     firestore.collection("study_history")
                         .document(doc.id)
-                        .update("quiz", quizList)
+                        .update("quiz", quizToSave)
                 }
             }
     }
+
 
     /** --- Timer --- */
     private fun startQuestionTimer() {
