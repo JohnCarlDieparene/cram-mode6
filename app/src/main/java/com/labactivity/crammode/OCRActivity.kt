@@ -44,6 +44,7 @@ import com.labactivity.crammode.model.QuizQuestion
 import android.graphics.Color
 import android.util.TypedValue
 import android.view.Gravity
+import androidx.appcompat.app.AlertDialog
 
 
 
@@ -185,7 +186,13 @@ class   OCRActivity : AppCompatActivity() {
         spinnerFormat.adapter = ArrayAdapter(
             this,
             android.R.layout.simple_spinner_dropdown_item,
-            listOf("Paragraph", "Bullets")
+            listOf(
+                "Paragraph",
+                "Bullets",
+                "Numbered List",
+                "Code Blocks",
+                "Mixed (Bullets + Code)"
+            )
         )
 
 
@@ -373,6 +380,13 @@ class   OCRActivity : AppCompatActivity() {
             ocrResultsList.clear()
 
         }
+
+        val btnSelectFocus: Button = findViewById(R.id.btnSelectFocus)
+        btnSelectFocus.setOnClickListener {
+            showFocusSelectionDialog()
+        }
+
+
 
         // Copy OCR Text
         btnCopyOcr.setOnClickListener {
@@ -594,6 +608,36 @@ class   OCRActivity : AppCompatActivity() {
             }
     }
 
+    // ---------------- FOCUS AREAS ----------------
+    private val focusOptions = arrayOf(
+        "Definitions",
+        "Formulas",
+        "Main Concepts",
+        "Examples",
+        "Code Snippets",
+        "Important Dates"
+    )
+    private val selectedFocus = BooleanArray(focusOptions.size) { false }
+
+    private fun showFocusSelectionDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Select Focus Areas")
+            .setMultiChoiceItems(focusOptions, selectedFocus) { _, which, isChecked ->
+                selectedFocus[which] = isChecked
+            }
+            .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
+            .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
+            .show()
+    }
+
+    private fun getSelectedFocusAreas(): String {
+        val selected = mutableListOf<String>()
+        for (i in focusOptions.indices) {
+            if (selectedFocus[i]) selected.add(focusOptions[i])
+        }
+        return if (selected.isEmpty()) "main keywords and key concepts" else selected.joinToString(", ")
+    }
+
 
     private var lastRequestTime = 0L
     private val COOLDOWN_MS = 6000L // 6 seconds cooldown between requests
@@ -679,6 +723,7 @@ class   OCRActivity : AppCompatActivity() {
     private fun summarizeText(text: String) {
         val length = spinnerLength.selectedItem.toString().lowercase()
         val format = spinnerFormat.selectedItem.toString().lowercase()
+        val focusAreas = getSelectedFocusAreas()
 
         progressBar.visibility = View.VISIBLE
         btnSummarize.isEnabled = false
@@ -686,23 +731,32 @@ class   OCRActivity : AppCompatActivity() {
         val systemPrompt = if (selectedLanguage == "Filipino") {
             """
         Ikaw ay isang AI study assistant. Buodin ang ibinigay na teksto sa malinaw at maikling paraan.
-        Ituon ang buod sa pangunahing salita at mahahalagang konsepto.
-        Haba: $length
-        Format: $format
-        """.trimIndent()
+    Ituon ang buod sa: $focusAreas
+    Haba: $length
+    Format: $format
+    • Kung may Code Snippets sa teksto:
+      - Ipakita ang bawat snippet sa bullet point o code block depende sa napiling Format.
+      - Panatilihin ang tamang indentation at syntax (ayusin ang maliit na error kung kinakailangan).
+      - Magbigay ng 1–2 linya ng paliwanag bawat snippet.
+    • Huwag gawing mahaba o paulit-ulit ang paliwanag.
+    """.trimIndent()
         } else {
             """
-        You are an AI study assistant. Summarize the given text clearly and concisely.
-        Focus the summary on the main keywords and key concepts.
+         You are an AI study assistant. Summarize the given text clearly and concisely.
+        Focus the summary on: $focusAreas
         Length: $length
         Format: $format
-        """.trimIndent()
+         If there are Code Snippets in the text:
+    • Show each snippet in bullet points.
+    • Keep proper indentation and code syntax.
+    • Provide a short one- or two-line explanation for each snippet.
+    """.trimIndent()
         }
 
         val userPrompt = if (selectedLanguage == "Filipino") {
-            "Buodin ang tekstong ito sa pamamagitan ng pagtutok sa pangunahing salita at mahahalagang konsepto:\n\n$text"
+            "Buodin ang tekstong ito sa pamamagitan ng pagtutok sa: $focusAreas\\n\\n$text"
         } else {
-            "Summarize this text by focusing on the main keywords and key concepts:\n\n$text"
+            "Summarize this text by focusing on: $focusAreas\\n\\n$text"
         }
 
         val request = ChatRequest(
