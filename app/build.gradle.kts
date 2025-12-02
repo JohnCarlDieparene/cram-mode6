@@ -60,6 +60,8 @@ android {
 
 dependencies {
 
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("androidx.activity:activity-ktx:1.8.0")
 

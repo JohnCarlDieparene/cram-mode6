@@ -1,8 +1,26 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme with ActionBar -->
-    <style name="Base.Theme.CramMode" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your theme here -->
+
+    <!-- Base App Theme -->
+    <style name="Base.Theme.CramMode" parent="Theme.Material3.DayNight.NoActionBar" />
+    <style name="Theme.CramMode" parent="Base.Theme.CramMode" />
+
+    <!-- Splash Screen Theme -->
+    <style name="Theme.CramMode.Splash" parent="Theme.Material3.DayNight.NoActionBar">
+
+        <!-- Full-screen background -->
+        <item name="android:windowBackground">@drawable/splash_background</item>
+
+
+
+        <!-- Splash screen background color (used while loading) -->
+        <item name="windowSplashScreenBackground">@color/white</item>
+
+        <!-- Optional: animation duration -->
+        <item name="windowSplashScreenAnimationDuration">800</item>
+
+        <!-- Switch to main theme after splash -->
+        <item name="postSplashScreenTheme">@style/Theme.CramMode</item>
+
     </style>
 
-    <style name="Theme.CramMode" parent="Base.Theme.CramMode" />
 </resources>

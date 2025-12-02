@@ -45,6 +45,8 @@ import android.graphics.Color
 import android.util.TypedValue
 import android.view.Gravity
 import androidx.appcompat.app.AlertDialog
+import androidx.core.splashscreen.SplashScreen
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 
 
@@ -108,6 +110,9 @@ class   OCRActivity : AppCompatActivity() {
     enum class Mode { SUMMARIZE, FLASHCARDS, QUIZ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
+        installSplashScreen()
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ocr)
 
